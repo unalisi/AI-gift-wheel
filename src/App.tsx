@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import confetti from 'canvas-confetti';
 
 // Seçilen kategori sayısına göre renkleri döngüyle kullanıyoruz
 const SEGMENT_COLORS = [
@@ -41,9 +42,60 @@ function App() {
   });
   const [isSpinning, setIsSpinning] = useState(false);
   const [spinResult, setSpinResult] = useState<string | null>(null);
-  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [streamedResponse, setStreamedResponse] = useState<string>("");
   const [aiLoading, setAiLoading] = useState(false);
   const [wheelRotation, setWheelRotation] = useState(0); // Çarkın rotasyon açısı
+
+  const spinAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const playSpinSound = () => {
+    // Audio playback tarayıcıda kullanıcı etkileşimi gerektirebilir;
+    // bu yüzden butonla tetiklediğimiz akışta "catch" ile sessizce hata yönetiyoruz.
+    try {
+      if (spinAudioRef.current) {
+        spinAudioRef.current.pause();
+        spinAudioRef.current.currentTime = 0;
+      }
+      const audio = new Audio('/spin.mp3');
+      audio.volume = 0.6;
+      audio.loop = true;
+      spinAudioRef.current = audio;
+      void audio.play().catch(() => {});
+    } catch {
+      // mp3 yüklenemese bile uygulama akışı bozulmasın
+    }
+  };
+
+  const stopSpinSound = () => {
+    const audio = spinAudioRef.current;
+    if (!audio) return;
+    audio.pause();
+    audio.currentTime = 0;
+  };
+
+  const playSuccessSound = () => {
+    try {
+      const audio = new Audio('/success.mp3');
+      audio.volume = 0.8;
+      void audio.play().catch(() => {});
+    } catch {
+      // yok say
+    }
+  };
+
+  const launchSuccessConfetti = () => {
+    try {
+      confetti({
+        particleCount: 180,
+        spread: 70,
+        startVelocity: 35,
+        origin: { y: 0.6 },
+        colors: ['#FFD700', '#FF8C00', '#EE82EE', '#00BFFF', '#00FF00', '#9400D3'],
+      });
+    } catch {
+      // yok say
+    }
+  };
 
   // Form inputlarını ve tag seçimlerini işler
   const handleInputChange = (key: keyof FormData, value: string) => {
@@ -78,7 +130,10 @@ function App() {
 
     setIsSpinning(true);
     setSpinResult(null);
-    setAiSuggestions([]);
+    setStreamedResponse("");
+
+    // Çark dönmeye başladığında ses ve haptik hissi güçlendirelim.
+    playSpinSound();
 
     // --- DİNAMİK AÇI HESAPLAMA ---
     const selectedInterests = formData.ilgiAlani;
@@ -105,19 +160,22 @@ function App() {
     setTimeout(async () => {
       setIsSpinning(false);
       setSpinResult(winner);
+      stopSpinSound();
+      launchSuccessConfetti();
+      playSuccessSound();
       await hediyeOnerisiAl(winner);
     }, 5000); 
   };
 
-  // AI modelinden hediye önerisi al
+  // AI modelinden hediye önerisi al (Streaming versiyon)
   const hediyeOnerisiAl = async (kategori: string) => {
     setAiLoading(true);
+    setStreamedResponse("");
     try {
       const res = await fetch('/api/suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          // Worker tarafının beklediği field isimleri
           yas: formData.yasAraligi,
           cinsiyet: formData.cinsiyet,
           butce: formData.butce,
@@ -127,34 +185,54 @@ function App() {
         })
       });
 
-      if (!res.ok) {
-        let payload: unknown = null;
-        try {
-          payload = await res.json();
-        } catch {
-          // boş geç
-        }
-        const errorValue = (payload as { error?: unknown; details?: unknown } | null)?.error;
-        const detailsValue = (payload as { error?: unknown; details?: unknown } | null)?.details;
+      if (!res.ok) throw new Error(`HTTP ${res.status} Hatası`);
 
-        const message =
-          typeof errorValue === "string"
-            ? errorValue
-            : typeof detailsValue === "string"
-              ? detailsValue
-              : `HTTP ${res.status} ${res.statusText}`;
-        throw new Error(message);
+      const reader = res.body?.getReader();
+      if (!reader) return;
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+
+        // Son satır yarım kalmış olabilir, onu buffer'da tut
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (trimmedLine.startsWith("data: ") && trimmedLine !== "data: [DONE]") {
+            try {
+              const data = JSON.parse(trimmedLine.slice(6)) as { response?: unknown };
+              if (typeof data.response === "string") {
+                setStreamedResponse((prev) => prev + data.response);
+              }
+            } catch {
+              // Eksik chunk'ları (parçaları) sessizce geç
+            }
+          }
+        }
       }
 
-      const data: unknown = await res.json();
-      const result = Array.isArray((data as { result?: unknown })?.result)
-        ? ((data as { result: string[] })?.result ?? [])
-        : [];
-      setAiSuggestions(result.length > 0 ? result : ["Öneri gelmedi."]);
+      // Akış bittiğinde buffer'da kalmış son "data:" satırını da işle
+      const remainingLine = buffer.trim();
+      if (remainingLine.startsWith("data: ") && remainingLine !== "data: [DONE]") {
+        try {
+          const data = JSON.parse(remainingLine.slice(6)) as { response?: unknown };
+          if (typeof data.response === "string") {
+            setStreamedResponse((prev) => prev + data.response);
+          }
+        } catch {
+          // buffer parçalıysa sessizce geç
+        }
+      }
     } catch (err) {
       console.error(err);
-      const message = err instanceof Error ? err.message : String(err);
-      setAiSuggestions([message || "Öneriler alınırken bir hata oluştu."]);
+      setStreamedResponse("Öneriler alınırken bir hata oluştu.");
     } finally {
       setAiLoading(false);
     }
@@ -277,7 +355,7 @@ function App() {
         <div className="flex flex-col items-center justify-center p-8 bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl min-h-[500px] relative">
           
           {/* Çark Ekranı (Eğer kazanan yoksa veya AI yüklenmiyorsa) */}
-          {!spinResult && !aiLoading && aiSuggestions.length === 0 && (
+          {!spinResult && !aiLoading && streamedResponse.length === 0 && (
             <>
               {/* SVG Çarkı */}
               <div className="relative w-[400px] h-[400px]">
@@ -396,28 +474,34 @@ function App() {
             </div>
           )}
 
-          {/* AI Yükleniyor Ekranı */}
-          {aiLoading && (
+          {/* AI Yükleniyor Ekranı (Sadece metin akmaya başlayana kadar görünür) */}
+          {aiLoading && streamedResponse.length === 0 && (
             <div className="flex flex-col items-center animate-pulse z-10">
               <div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mb-4"></div>
               <p className="text-slate-400">Yapay zeka size özel hediyeler düşünüyor...</p>
             </div>
           )}
 
-          {/* AI Sonuçları Ekranı */}
-          {aiSuggestions.length > 0 && !aiLoading && (
+          {/* Streamlenmiş AI Metni */}
+          {streamedResponse.length > 0 && (
             <div className="w-full text-left space-y-5 z-10">
                <h3 className="text-xl font-bold text-slate-100">Önerilen Hediyeler</h3>
-              <ol className="list-decimal list-inside pl-1 space-y-4 text-slate-300 text-sm">
-                {aiSuggestions.map((suggestion, index) => (
-                   <li key={index}>{suggestion}</li>
-                ))}
-              </ol>
-              <button 
-                onClick={() => {setSpinResult(null); setAiSuggestions([]);}}
-                className="w-full mt-4 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-xl transition-colors border border-slate-700 shadow-lg shadow-black/10">
-                Yeniden Dene
-              </button>
+              <div
+                className="whitespace-pre-wrap text-slate-300 text-sm leading-relaxed custom-scrollbar"
+                aria-label="AI tarafından oluşturulan hediye önerileri (Markdown formatında metin)"
+                aria-live="polite"
+              >
+                {streamedResponse}
+              </div>
+              {!aiLoading && (
+                <button
+                  onClick={() => { setSpinResult(null); setStreamedResponse(""); }}
+                  className="w-full mt-4 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-xl transition-colors border border-slate-700 shadow-lg shadow-black/10"
+                  aria-label="Önerileri yeniden oluştur"
+                >
+                  Yeniden Dene
+                </button>
+              )}
             </div>
           )}
         </div>

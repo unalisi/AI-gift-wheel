@@ -5,10 +5,24 @@ import {
 } from "@cloudflare/kv-asset-handler";
 
 type AIService = {
-  run: (
-    model: string,
-    options: { messages: Array<{ role: string; content: string }> }
-  ) => Promise<{ response: string }>;
+  run: {
+    (
+      model: string,
+      options: {
+        messages: Array<{ role: string; content: string }>;
+        stream: true;
+        max_tokens?: number;
+      }
+    ): Promise<ReadableStream<Uint8Array>>;
+    (
+      model: string,
+      options: {
+        messages: Array<{ role: string; content: string }>;
+        stream?: false;
+        max_tokens?: number;
+      }
+    ): Promise<{ response: string }>;
+  };
 };
 
 type SuggestRequestBody = {
@@ -61,74 +75,25 @@ Ekstra Notlar: ${ekstraNot || "Yok"}
 
 Lütfen yukarıdaki profile tam uygun, yaratıcı ve spesifik 5 adet hediye önerisi yap. Her önerinin yanına (bu bütçeye uygun olarak) tahmini fiyatını ve bu hediyeyi neden seçtiğini 1-2 cümle ile TÜRKÇE olarak açıkla. Giriş veya çıkış cümlesi yazma, doğrudan 1. maddeden başla.`;
 
-        type AIMessage = { role: string; content: string };
-
-        const messagesV1: AIMessage[] = [
+        // 1. SİSTEM KOMUTU ve 2. KULLANICI KOMUTU kısımları aynı kalıyor...
+        const messagesV1 = [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ];
 
-        // Bazı runtime’larda `system` rolü veya mesaj formatı farklı davranabiliyor.
-        // Bu fallback ile sadece `user` rolünü kullanıyoruz.
-        const messagesV2: AIMessage[] = [
-          { role: "user", content: `${systemPrompt}\n\n${userPrompt}` },
-        ];
-
-        const aiCandidates: Array<{
-          model: string;
-          messages: AIMessage[];
-        }> = [
-          { model: "@cf/meta/llama-3.1-8b-instruct", messages: messagesV1 },
-          { model: "@cf/meta/llama-3.1-8b-instruct", messages: messagesV2 },
-          { model: "@cf/meta/llama-3-8b-instruct", messages: messagesV1 },
-          { model: "@cf/meta/llama-3-8b-instruct", messages: messagesV2 },
-        ];
-
-        let rawOutput: string | null = null;
-        let lastError: unknown = null;
-
-        for (const candidate of aiCandidates) {
-          try {
-            const response = await env.AI.run(candidate.model, {
-              messages: candidate.messages,
-            });
-            rawOutput = response.response;
-            break;
-          } catch (err) {
-            lastError = err;
-          }
-        }
-
-        if (!rawOutput) {
-          return new Response(
-            JSON.stringify({
-              error: "AI yanıtı alınamadı.",
-              details: lastError instanceof Error ? lastError.message : String(lastError),
-            }),
-            {
-              status: 503,
-              headers: { "Content-Type": "application/json", ...corsHeaders },
-            },
-          );
-        }
-
-        const lines = rawOutput.split("\n");
-        const suggestions: string[] = [];
-
-        // Numaralandırılmış listeleri yakala (Örn: "1. Kupa Bardak" veya "1) Kupa Bardak")
-        lines.forEach((line) => {
-          const match = line.match(/^\d+[.)]\s*(.+)/);
-          if (match) suggestions.push(match[1]);
+        // Yedekleme (aiCandidates) döngüsünü tamamen kaldırdık!
+        // Doğrudan stream (akış) başlatıyoruz.
+        const stream = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
+          messages: messagesV1,
+          stream: true, // YAPAY ZEKAYI HIZLANDIRAN SİHİRLİ KELİME
+          max_tokens: 800, // Uzun yanıt verip timeout olmasını engeller
         });
 
-        if (suggestions.length === 0) {
-          return new Response(JSON.stringify({ result: [rawOutput] }), {
-            headers: { "Content-Type": "application/json", ...corsHeaders },
-          });
-        }
-
-        return new Response(JSON.stringify({ result: suggestions.slice(0, 5) }), {
-          headers: { "Content-Type": "application/json", ...corsHeaders },
+        return new Response(stream, {
+          headers: {
+            "Content-Type": "text/event-stream", // Stream header'ı
+            ...corsHeaders,
+          },
         });
       } catch (err) {
         return new Response(
