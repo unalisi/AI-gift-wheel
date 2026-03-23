@@ -279,14 +279,31 @@ function App() {
       {/* HEADER */}
       <header className="w-full max-w-[900px] mb-[52px]">
         <div className="flex items-center justify-between mb-6">
-          <div className="w-10" />
+          <p className="text-[14px] font-light leading-[1.5]" style={{ color: '#5a5650' }}>
+            Future Talent Program 201<br />Yapay Zeka Bitirme Projesi
+          </p>
           <div
             className="px-[14px] py-[5px] rounded-[20px] border text-[11px] font-medium tracking-[0.12em] uppercase"
             style={{ color: '#e8c87a', borderColor: 'rgba(232,200,122,0.3)' }}
           >
-            ✦ Yapay Zeka Destekli
+            Eda KARA
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-[170px]">
+            <a
+              href="https://www.linkedin.com/in/edakaraa"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-9 h-9 flex items-center justify-center rounded-full border transition-colors"
+              style={{ borderColor: 'rgba(255,255,255,0.08)', color: '#8a8478' }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#e8c87a'; e.currentTarget.style.borderColor = 'rgba(232,200,122,0.3)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = '#8a8478'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
+              aria-label="LinkedIn profilini görüntüle"
+              tabIndex={0}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+              </svg>
+            </a>
             <a
               href="https://github.com/edakaraa/hediye-carki"
               target="_blank"
@@ -316,8 +333,14 @@ function App() {
           </div>
         </div>
         <div className="flex flex-col items-center text-center space-y-[14px]">
+        <div
+            className="px-[14px] py-[5px] rounded-[20px] border text-[11px] font-medium tracking-[0.12em] uppercase"
+            style={{ color: '#e8c87a', borderColor: 'rgba(232,200,122,0.3)' }}
+          >
+            ✦ Yapay Zeka Destekli
+          </div>
           <h1
-            className="text-[clamp(36px,6vw,62px)] font-black tracking-tight leading-[1.05]"
+            className="text-[clamp(36px,6vw,62px)] !mt-0 font-black tracking-tight leading-[1.05]"
             style={{ fontFamily: "'Playfair Display', serif", color: '#f0ece4' }}
           >
             Hediye <span style={{ color: '#e8c87a' }}>Çarkı</span>
@@ -364,11 +387,15 @@ function App() {
                 <span className="font-semibold" style={{ color: '#e8c87a' }}>Hediye Çarkı</span>, yapay zeka destekli bir hediye öneri uygulamasıdır. Kişiye özel bilgileri girdikten sonra çarkı çevirerek AI&apos;ın size en uygun hediye önerilerini sunmasını sağlayabilirsiniz.
               </p>
               <p>
-                Uygulama <span className="font-semibold" style={{ color: '#e8c87a' }}>Groq LPU</span> altyapısını kullanarak <span className="font-semibold" style={{ color: '#e8c87a' }}>Llama 3.3 70B</span> modeli ile gerçek zamanlı hediye önerileri üretir.
+                Uygulama <span className="font-semibold" style={{ color: '#e8c87a' }}>Groq LPU</span> altyapısını kullanarak gerçek zamanlı hediye önerileri üretir.
+              </p>
+              <p>
+                Geliştirmeler <span className="font-semibold" style={{ color: '#e8c87a' }}>Ücretsiz Groq API KEY</span> kullanılarak yapılmıştır. Dolayısıyla <span className="font-semibold" style={{ color: '#e8c87a' }}> önerilerde belirtilen fiyatlar, gerçek ürün fiyatlarıyla uyuşmayabilir.</span>
               </p>
               <div className="pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
                 <p className="text-xs" style={{ color: '#5a5650' }}>
-                  React + TypeScript + Tailwind CSS + Cloudflare Workers
+                  <a href="https://techsider.co" target="_blank" rel="noopener noreferrer" className="font-semibold underline" style={{ color: '#e8c87a' }}>techsider.co</a> profesyonel iş yönetimim için kurduğum web sitesidir. <br />
+                  <a href="https://linkedin.com/in/edakaraa" target="_blank" rel="noopener noreferrer" className="font-semibold" style={{ color: '#e8c87a' }}>Eda Kara</a> ® Tüm hakları saklıdır.  
                 </p>
               </div>
             </div>
