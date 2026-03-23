@@ -4,27 +4,6 @@ import {
   serveSinglePageApp,
 } from "@cloudflare/kv-asset-handler";
 
-type AIService = {
-  run: {
-    (
-      model: string,
-      options: {
-        messages: Array<{ role: string; content: string }>;
-        stream: true;
-        max_tokens?: number;
-      }
-    ): Promise<ReadableStream<Uint8Array>>;
-    (
-      model: string,
-      options: {
-        messages: Array<{ role: string; content: string }>;
-        stream?: false;
-        max_tokens?: number;
-      }
-    ): Promise<{ response: string }>;
-  };
-};
-
 type SuggestRequestBody = {
   yas: string;
   cinsiyet: string;
@@ -35,7 +14,7 @@ type SuggestRequestBody = {
 };
 
 export interface Env {
-  AI: AIService;
+  GROQ_API_KEY: string;
   __STATIC_CONTENT: unknown;
 }
 
@@ -43,19 +22,16 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
-    // CORS Başlıkları (Frontend ve Backend farklı istekler için)
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
     };
 
-    // Preflight (OPTIONS) isteklerini yanıtla
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders });
     }
 
-    // /api/suggest endpoint'ini dinle
     if (url.pathname === "/api/suggest" && request.method === "POST") {
       try {
         const body = (await request.json()) as SuggestRequestBody;
@@ -75,20 +51,39 @@ export default {
         const userPrompt = `Bütçe (KESİN UYULMALI): ${budgetDescription}.
 Yaş: ${yas}, Cinsiyet: ${cinsiyet}, Vesile: ${vesile}, Not: ${ekstraNot || "Yok"}, Kategori: ${spinKategorisi}.
 Bu bütçeye uygun SADECE 5 kısa hediye önerisi yap. Her madde: hediye adı, tahmini fiyat (${budgetDescription} aralığında), tek cümle açıklama. Doğrudan listeye başla.`;
-        const messagesV1 = [
+
+        const messages = [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ];
 
-        // Yedekleme (aiCandidates) döngüsünü tamamen kaldırdık!
-        // Doğrudan stream (akış) başlatıyoruz.
-        const stream = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
-          messages: messagesV1,
-          stream: true,
-          max_tokens: 400,
+        const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${env.GROQ_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages,
+            stream: true,
+            max_tokens: 400,
+            temperature: 0.7,
+          }),
         });
 
-        return new Response(stream, {
+        if (!groqResponse.ok) {
+          const errorBody = await groqResponse.text();
+          return new Response(
+            JSON.stringify({ error: "Groq API hatası", details: errorBody }),
+            {
+              status: groqResponse.status,
+              headers: { "Content-Type": "application/json", ...corsHeaders },
+            },
+          );
+        }
+
+        return new Response(groqResponse.body, {
           headers: {
             "Content-Type": "text/event-stream",
             "Cache-Control": "no-cache",
@@ -110,7 +105,6 @@ Bu bütçeye uygun SADECE 5 kısa hediye önerisi yap. Her madde: hediye adı, t
       }
     }
 
-    // Diğer tüm istekleri frontend için statik asset olarak servis et
     try {
       if (!env.__STATIC_CONTENT) {
         return new Response("STATIC_CONTENT binding not found", { status: 500 });
@@ -133,7 +127,6 @@ Bu bütçeye uygun SADECE 5 kısa hediye önerisi yap. Her madde: hediye adı, t
         return new Response("Not found", { status: 404 });
       }
       const message = err instanceof Error ? err.message : String(err);
-      console.error("Static asset error:", message);
       return new Response(message, { status: 500 });
     }
   },

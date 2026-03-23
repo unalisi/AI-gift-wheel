@@ -1,19 +1,28 @@
 import { useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
 
-// Seçilen kategori sayısına göre renkleri döngüyle kullanıyoruz
 const SEGMENT_COLORS = [
-  '#6B4C3B',
-  '#3D5B4A',
-  '#6B3A4D',
-  '#5A6B3A',
-  '#3A4D5B',
-  '#5B4A3A',
-  '#4D3A5B',
-  '#5B6B3A',
+  '#2a2318',
+  '#1a2226',
+  '#26221a',
+  '#1a2220',
+  '#26201a',
+  '#221a26',
+  '#1a2226',
+  '#261a1a',
 ];
 
-// Form seçenekleri (Tasarım görüntüsüne uygun)
+const SEGMENT_STROKES = [
+  '#e8c87a',
+  '#7ab8e8',
+  '#e87ab8',
+  '#7ae8a8',
+  '#e8a87a',
+  '#b87ae8',
+  '#7ab8e8',
+  '#e87a7a',
+];
+
 const formOptions = {
   yasAraliklari: ["0-12", "13-17", "18-25", "26-40", "41-60", "60+"],
   cinsiyetler: ["Kadın", "Erkek", "Fark etmez"],
@@ -50,8 +59,6 @@ function App() {
   const spinAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const playSpinSound = () => {
-    // Audio playback tarayıcıda kullanıcı etkileşimi gerektirebilir;
-    // bu yüzden butonla tetiklediğimiz akışta "catch" ile sessizce hata yönetiyoruz.
     try {
       if (spinAudioRef.current) {
         spinAudioRef.current.pause();
@@ -79,9 +86,7 @@ function App() {
       const audio = new Audio('/success.mp3');
       audio.volume = 0.8;
       void audio.play().catch(() => {});
-    } catch {
-      // yok say
-    }
+    } catch {}
   };
 
   const launchSuccessConfetti = () => {
@@ -91,17 +96,13 @@ function App() {
         spread: 70,
         startVelocity: 35,
         origin: { y: 0.6 },
-        colors: ['#FFD700', '#FF8C00', '#EE82EE', '#00BFFF', '#00FF00', '#9400D3'],
+        colors: ['#e8c87a', '#7ae8a8', '#e87ab8', '#7ab8e8', '#e8a87a'],
       });
-    } catch {
-      // yok say
-    }
+    } catch {}
   };
 
-  // Form inputlarını ve tag seçimlerini işler
   const handleInputChange = (key: keyof FormData, value: string) => {
     setFormData((prev) => {
-      // Çoklu seçim (İlgi Alanları)
       if (key === 'ilgiAlani') {
         const currentInterests = prev.ilgiAlani;
         const updatedInterests = currentInterests.includes(value)
@@ -109,19 +110,16 @@ function App() {
           : [...currentInterests, value];
         return { ...prev, ilgiAlani: updatedInterests };
       }
-      // Tekli seçim
       return { ...prev, [key]: value } as FormData;
     });
   };
 
-  // Çarkı çevirme fonksiyonu (Dinamik açı hesaplaması ile)
   const carkiCevir = async () => {
-    if (isSpinning || aiLoading) return; // Zaten çevriliyor veya yükleniyor
+    if (isSpinning || aiLoading) return;
 
-    // Form kontrolü (minimal alanlar)
     if (!formData.yasAraligi || !formData.butce || !formData.vesile) {
-        alert("Lütfen temel alanları (Yaş, Bütçe, Vesile) doldurun.");
-        return;
+      alert("Lütfen temel alanları (Yaş, Bütçe, Vesile) doldurun.");
+      return;
     }
 
     if (formData.ilgiAlani.length < 2) {
@@ -132,32 +130,21 @@ function App() {
     setIsSpinning(true);
     setSpinResult(null);
     setStreamedResponse("");
-
-    // Çark dönmeye başladığında ses ve haptik hissi güçlendirelim.
     playSpinSound();
 
-    // --- DİNAMİK AÇI HESAPLAMA ---
     const selectedInterests = formData.ilgiAlani;
     const numSegments = selectedInterests.length;
     const segmentAngle = 360 / numSegments;
-    
-    // Kazananı belirle
     const winnerIndex = Math.floor(Math.random() * numSegments);
     const winner = selectedInterests[winnerIndex];
-
-    // Kazanan dilimin TAM ORTASINA gelmesi için hedef açıyı bul
     const offset = segmentAngle / 2;
     const targetAngle = 360 - (winnerIndex * segmentAngle + offset);
-
-    // Mevcut rotasyonun üzerine 5 tam tur (1800 derece) + hedef açıyı ekle
     const currentMod = wheelRotation % 360;
     const rotationToAdd = (360 - currentMod) + targetAngle + 1800;
     const newRotation = wheelRotation + rotationToAdd;
 
-    setWheelRotation(newRotation); // Çarkı hesaplanan yeni dereceye çevir
-    // ----------------------------
+    setWheelRotation(newRotation);
 
-    // Çark dönme efekti (transition 4.5s sürer, setTimeout 5s)
     setTimeout(async () => {
       setIsSpinning(false);
       setSpinResult(winner);
@@ -165,10 +152,9 @@ function App() {
       launchSuccessConfetti();
       playSuccessSound();
       await hediyeOnerisiAl(winner);
-    }, 5000); 
+    }, 5000);
   };
 
-  // AI modelinden hediye önerisi al (Streaming versiyon)
   const hediyeOnerisiAl = async (kategori: string) => {
     setAiLoading(true);
     setStreamedResponse("");
@@ -209,13 +195,14 @@ function App() {
           const trimmedLine = line.trim();
           if (trimmedLine.startsWith("data: ") && trimmedLine !== "data: [DONE]") {
             try {
-              const data = JSON.parse(trimmedLine.slice(6)) as { response?: unknown };
-              if (typeof data.response === "string") {
-                chunkToAppend += data.response;
+              const data = JSON.parse(trimmedLine.slice(6)) as {
+                choices?: Array<{ delta?: { content?: string } }>;
+              };
+              const content = data.choices?.[0]?.delta?.content;
+              if (typeof content === "string") {
+                chunkToAppend += content;
               }
-            } catch {
-              // Eksik chunk'ları sessizce geç
-            }
+            } catch {}
           }
         }
 
@@ -228,14 +215,15 @@ function App() {
       const remainingLine = buffer.trim();
       if (remainingLine.startsWith("data: ") && remainingLine !== "data: [DONE]") {
         try {
-          const data = JSON.parse(remainingLine.slice(6)) as { response?: unknown };
-          if (typeof data.response === "string") {
-            fullText += data.response;
+          const data = JSON.parse(remainingLine.slice(6)) as {
+            choices?: Array<{ delta?: { content?: string } }>;
+          };
+          const content = data.choices?.[0]?.delta?.content;
+          if (typeof content === "string") {
+            fullText += content;
             setStreamedResponse(fullText);
           }
-        } catch {
-          // Eksik chunk sessizce geç
-        }
+        } catch {}
       }
     } catch (err) {
       console.error(err);
@@ -245,7 +233,6 @@ function App() {
     }
   };
 
-  // Tag grubu bileşeni (Tekli veya çoklu seçim)
   type TagGroupProps = {
     options: string[];
     selectedValues: string | string[];
@@ -261,7 +248,7 @@ function App() {
     keyProp,
     multiple = false,
   }: TagGroupProps) => (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-[7px]">
       {options.map((option) => {
         const isSelected = multiple
           ? (selectedValues as string[]).includes(option)
@@ -270,10 +257,10 @@ function App() {
           <button
             key={option}
             onClick={() => onSelect(keyProp, option)}
-            className={`px-3 py-1.5 rounded-full text-xs transition border ${
+            className={`px-[13px] py-[6px] rounded-[20px] text-xs transition-all border select-none cursor-pointer ${
               isSelected
-                ? "bg-amber-400 text-black font-medium border-amber-400"
-                : "bg-stone-900 text-stone-300 border-stone-800 hover:bg-stone-800"
+                ? "bg-[rgba(232,200,122,0.15)] text-[#e8c87a] font-medium border-[rgba(232,200,122,0.5)]"
+                : "bg-[#231f1b] text-[#8a8478] border-[rgba(255,255,255,0.08)] hover:border-[rgba(232,200,122,0.3)] hover:text-[#e8c87a]"
             }`}
           >
             {option}
@@ -284,31 +271,43 @@ function App() {
   );
 
   return (
-    <div className="min-h-screen bg-stone-950 p-6 md:p-12 flex flex-col items-center justify-start font-sans text-stone-100">
-      
-      {/* HEADER ALANI */}
-      <header className="w-full max-w-7xl mb-16">
+    <div
+      className="min-h-screen p-6 md:p-12 flex flex-col items-center justify-start"
+      style={{ background: '#0f0e0c', color: '#f0ece4', fontFamily: "'DM Sans', sans-serif" }}
+    >
+
+      {/* HEADER */}
+      <header className="w-full max-w-[900px] mb-[52px]">
         <div className="flex items-center justify-between mb-6">
           <div className="w-10" />
-          <div className="px-4 py-1.5 bg-stone-900 rounded-full border border-stone-800 text-xs text-amber-400 font-medium tracking-wider uppercase">
-            ✦ YAPAY ZEKA DESTEKLİ
+          <div
+            className="px-[14px] py-[5px] rounded-[20px] border text-[11px] font-medium tracking-[0.12em] uppercase"
+            style={{ color: '#e8c87a', borderColor: 'rgba(232,200,122,0.3)' }}
+          >
+            ✦ Yapay Zeka Destekli
           </div>
           <div className="flex items-center gap-2">
             <a
-              href="https://github.com/unalisi/kreatif-proje"
+              href="https://github.com/edakaraa/hediye-carki"
               target="_blank"
               rel="noopener noreferrer"
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-stone-900 border border-stone-800 text-stone-400 hover:text-amber-400 hover:border-amber-400/50 transition-colors"
+              className="w-9 h-9 flex items-center justify-center rounded-full border transition-colors"
+              style={{ borderColor: 'rgba(255,255,255,0.08)', color: '#8a8478' }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#e8c87a'; e.currentTarget.style.borderColor = 'rgba(232,200,122,0.3)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = '#8a8478'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
               aria-label="GitHub reposunu görüntüle"
               tabIndex={0}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
               </svg>
             </a>
             <button
               onClick={() => setShowInfoModal(true)}
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-stone-900 border border-stone-800 text-stone-400 hover:text-amber-400 hover:border-amber-400/50 transition-colors text-lg font-bold"
+              className="w-9 h-9 flex items-center justify-center rounded-full border transition-colors text-sm font-bold"
+              style={{ borderColor: 'rgba(255,255,255,0.08)', color: '#8a8478' }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#e8c87a'; e.currentTarget.style.borderColor = 'rgba(232,200,122,0.3)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = '#8a8478'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
               aria-label="Proje hakkında bilgi"
               tabIndex={0}
             >
@@ -316,11 +315,14 @@ function App() {
             </button>
           </div>
         </div>
-        <div className="flex flex-col items-center text-center space-y-4">
-          <h1 className="text-5xl md:text-6xl font-extrabold text-stone-100 tracking-tight leading-none" style={{ fontFamily: 'serif' }}>
-            Hediye Çarkı
+        <div className="flex flex-col items-center text-center space-y-[14px]">
+          <h1
+            className="text-[clamp(36px,6vw,62px)] font-black tracking-tight leading-[1.05]"
+            style={{ fontFamily: "'Playfair Display', serif", color: '#f0ece4' }}
+          >
+            Hediye <span style={{ color: '#e8c87a' }}>Çarkı</span>
           </h1>
-          <p className="text-sm md:text-base text-stone-400 max-w-[420px] mx-auto">
+          <p className="text-[15px] font-light max-w-[420px] mx-auto leading-relaxed" style={{ color: '#8a8478' }}>
             Kişiye özel bilgileri gir, çarkı çevir — AI en iyi hediyeyi bulsun.
           </p>
         </div>
@@ -329,35 +331,43 @@ function App() {
       {/* BİLGİ MODAL */}
       {showInfoModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(15,14,12,0.85)', backdropFilter: 'blur(6px)' }}
           onClick={() => setShowInfoModal(false)}
           role="dialog"
           aria-modal="true"
           aria-label="Proje hakkında bilgi modalı"
         >
           <div
-            className="bg-stone-900 border border-stone-800 rounded-2xl p-8 max-w-md w-full shadow-2xl space-y-5 relative"
+            className="rounded-2xl p-8 max-w-md w-full shadow-2xl space-y-5 relative"
+            style={{ background: '#1a1916', border: '1px solid rgba(232,200,122,0.25)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={() => setShowInfoModal(false)}
-              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-stone-800 hover:bg-stone-700 text-stone-400 hover:text-stone-100 transition-colors"
+              className="absolute top-5 right-5 text-[28px] leading-none transition-colors bg-transparent border-none cursor-pointer"
+              style={{ color: '#8a8478' }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#e8c87a'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = '#8a8478'; }}
               aria-label="Modalı kapat"
             >
-              ✕
+              ×
             </button>
-            <h2 className="text-2xl font-bold text-stone-100" style={{ fontFamily: 'serif' }}>
+            <h2
+              className="text-2xl font-bold"
+              style={{ fontFamily: "'Playfair Display', serif", color: '#f0ece4' }}
+            >
               Hediye Çarkı Hakkında
             </h2>
-            <div className="space-y-3 text-sm text-stone-300 leading-relaxed">
+            <div className="space-y-3 text-sm leading-relaxed" style={{ color: '#8a8478' }}>
               <p>
-                <span className="text-amber-400 font-semibold">Hediye Çarkı</span>, yapay zeka destekli bir hediye öneri uygulamasıdır. Kişiye özel bilgileri girdikten sonra çarkı çevirerek AI&apos;ın size en uygun hediye önerilerini sunmasını sağlayabilirsiniz.
+                <span className="font-semibold" style={{ color: '#e8c87a' }}>Hediye Çarkı</span>, yapay zeka destekli bir hediye öneri uygulamasıdır. Kişiye özel bilgileri girdikten sonra çarkı çevirerek AI&apos;ın size en uygun hediye önerilerini sunmasını sağlayabilirsiniz.
               </p>
               <p>
-                Uygulama <span className="text-amber-400 font-semibold">Cloudflare Workers AI</span> altyapısını kullanarak <span className="text-amber-400 font-semibold">Llama 3.1</span> modeli ile gerçek zamanlı hediye önerileri üretir.
+                Uygulama <span className="font-semibold" style={{ color: '#e8c87a' }}>Groq LPU</span> altyapısını kullanarak <span className="font-semibold" style={{ color: '#e8c87a' }}>Llama 3.3 70B</span> modeli ile gerçek zamanlı hediye önerileri üretir.
               </p>
-              <div className="pt-2 border-t border-stone-800">
-                <p className="text-stone-500 text-xs">
+              <div className="pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                <p className="text-xs" style={{ color: '#5a5650' }}>
                   React + TypeScript + Tailwind CSS + Cloudflare Workers
                 </p>
               </div>
@@ -366,50 +376,63 @@ function App() {
         </div>
       )}
 
-      <div className="w-full max-w-7xl grid md:grid-cols-2 gap-12 items-start">
-        
-        {/* SOL PANEL: Form ve Seçimler */}
-        <div className="bg-stone-900 p-8 rounded-2xl border border-stone-800 shadow-2xl space-y-6">
-          <h2 className="text-2xl font-bold text-stone-100 mb-6" style={{ fontFamily: 'serif' }}>Kişi Bilgileri</h2>
+      <div className="w-full max-w-[900px] grid md:grid-cols-2 gap-6 items-start">
 
-          {/* Yaş Aralığı */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-stone-300">YAŞ ARALIĞI</label>
+        {/* SOL PANEL: Form */}
+        <div
+          className="rounded-2xl p-7 space-y-[18px]"
+          style={{ background: '#1a1916', border: '1px solid rgba(255,255,255,0.08)' }}
+        >
+          <h2
+            className="text-lg font-bold mb-5"
+            style={{ fontFamily: "'Playfair Display', serif", color: '#f0ece4' }}
+          >
+            Kişi Bilgileri
+          </h2>
+
+          <div className="space-y-[7px]">
+            <label className="block text-[11px] font-medium tracking-[0.08em] uppercase" style={{ color: '#8a8478' }}>Yaş Aralığı</label>
             <TagGroup options={formOptions.yasAraliklari} selectedValues={formData.yasAraligi} onSelect={handleInputChange} keyProp="yasAraligi" />
           </div>
 
-          {/* Cinsiyet */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-stone-300">CİNSİYET</label>
+          <div className="space-y-[7px]">
+            <label className="block text-[11px] font-medium tracking-[0.08em] uppercase" style={{ color: '#8a8478' }}>Cinsiyet</label>
             <TagGroup options={formOptions.cinsiyetler} selectedValues={formData.cinsiyet} onSelect={handleInputChange} keyProp="cinsiyet" />
           </div>
 
-          {/* İlgi Alanları (Çoklu Seçim) */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-stone-300">İLGI ALANLARI <span className='text-xs text-stone-500'>(Çoklu Seçim)</span></label>
+          <div className="space-y-[7px]">
+            <label className="block text-[11px] font-medium tracking-[0.08em] uppercase" style={{ color: '#8a8478' }}>
+              İlgi Alanları <span style={{ color: '#5a5650' }}>(Çoklu Seçim)</span>
+            </label>
             <TagGroup options={formOptions.ilgiAlanlari} selectedValues={formData.ilgiAlani} onSelect={handleInputChange} keyProp="ilgiAlani" multiple={true} />
           </div>
 
-          {/* Bütçe Aralığı */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-stone-300">BÜTÇE ARALIĞI</label>
+          <div className="space-y-[7px]">
+            <label className="block text-[11px] font-medium tracking-[0.08em] uppercase" style={{ color: '#8a8478' }}>Bütçe</label>
             <TagGroup options={formOptions.butceler} selectedValues={formData.butce} onSelect={handleInputChange} keyProp="butce" />
           </div>
 
-          {/* Vesile */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-stone-300">VESİLE</label>
+          <div className="space-y-[7px]">
+            <label className="block text-[11px] font-medium tracking-[0.08em] uppercase" style={{ color: '#8a8478' }}>Vesile</label>
             <TagGroup options={formOptions.vesileler} selectedValues={formData.vesile} onSelect={handleInputChange} keyProp="vesile" />
           </div>
 
-          {/* Ekstra Not (Opsiyonel) */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-stone-300">EKSTRA NOT (OPSİYONEL)</label>
+          <div className="space-y-[7px]">
+            <label className="block text-[11px] font-medium tracking-[0.08em] uppercase" style={{ color: '#8a8478' }}>Ekstra Not (opsiyonel)</label>
             <textarea
               value={formData.ekstraNot}
               onChange={(e) => handleInputChange('ekstraNot', e.target.value)}
               rows={3}
-              className="w-full bg-stone-800/50 border border-stone-700 rounded-xl px-4 py-3 text-sm text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-500 custom-scrollbar"
+              className="w-full rounded-[10px] px-[14px] py-[10px] text-sm outline-none transition-colors resize-none"
+              style={{
+                background: '#231f1b',
+                border: '1px solid rgba(255,255,255,0.08)',
+                color: '#f0ece4',
+                fontFamily: "'DM Sans', sans-serif",
+                lineHeight: 1.5,
+              }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(232,200,122,0.5)'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
               placeholder="Örn: 'Kahveye bayılıyor, evde çalışıyor, minimalist zevki var...'"
             />
           </div>
@@ -418,7 +441,12 @@ function App() {
             type="button"
             onClick={carkiCevir}
             disabled={isSpinning || aiLoading}
-            className="w-full py-4 bg-amber-400 hover:bg-amber-300 disabled:opacity-50 disabled:bg-amber-400/70 text-black font-bold text-lg rounded-xl transition-all shadow-xl shadow-amber-950/20"
+            className="w-full py-[14px] border-none rounded-xl text-[15px] font-medium cursor-pointer transition-all mt-[6px] disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{
+              background: '#e8c87a',
+              color: '#0f0e0c',
+              fontFamily: "'DM Sans', sans-serif",
+            }}
             aria-label="Çarkı çevir"
           >
             ✦ Çarkı Çevir
@@ -426,158 +454,174 @@ function App() {
         </div>
 
         {/* SAĞ PANEL: Çark ve Sonuçlar */}
-        <div className="flex flex-col items-center justify-center p-8 bg-stone-900 rounded-2xl border border-stone-800 shadow-2xl min-h-[500px] relative">
-          
-          {/* Çark Ekranı (Eğer kazanan yoksa veya AI yüklenmiyorsa) */}
+        <div className="flex flex-col items-center justify-center gap-5 min-h-[500px] relative">
+
           {!spinResult && !aiLoading && streamedResponse.length === 0 && (
             <>
-              {/* SVG Çarkı */}
               <div className="relative w-[400px] h-[400px]">
                 <svg
                   width="400"
                   height="400"
                   viewBox="0 0 400 400"
-                  // Yavaşlama efekti (ease-out) cubic-bezier eğrisi ile eklendi
                   className={`transform transition-transform ${isSpinning ? 'duration-[5s] ease-[cubic-bezier(0.2,1,0.3,1)]' : ''}`}
                   style={{
                     transform: `rotate(${wheelRotation}deg)`,
-                    // Dönmüyorsa will-change-transform kaldırarak performansı iyileştir
-                    willChange: isSpinning ? 'transform' : 'auto'
+                    willChange: isSpinning ? 'transform' : 'auto',
                   }}
                 >
-                  <g filter="url(#shadow)">
-                    {formData.ilgiAlani.map((interest, index) => {
-                      const numSegments = formData.ilgiAlani.length;
-                      const segmentAngle = 360 / numSegments;
-                      const angle = index * segmentAngle;
-                      const largeArcFlag = segmentAngle > 180 ? 1 : 0;
-                      const radius = 180;
-                      const center = 200;
+                  {/* Boş çark çemberi (kategori yokken de görünür) */}
+                  <circle cx="200" cy="200" r="190" fill="none" stroke="#e8c87a" strokeWidth="2" strokeOpacity="0.25" />
+                  {formData.ilgiAlani.map((interest, index) => {
+                    const numSegments = formData.ilgiAlani.length;
+                    const segmentAngle = 360 / numSegments;
+                    const angle = index * segmentAngle;
+                    const largeArcFlag = segmentAngle > 180 ? 1 : 0;
+                    const radius = 190;
+                    const center = 200;
 
-                      // Dilim koordinatlarını hesapla
-                      const startX = center + radius * Math.cos((angle - 90) * Math.PI / 180);
-                      const startY = center + radius * Math.sin((angle - 90) * Math.PI / 180);
-                      const endX = center + radius * Math.cos((angle + segmentAngle - 90) * Math.PI / 180);
-                      const endY = center + radius * Math.sin((angle + segmentAngle - 90) * Math.PI / 180);
+                    const startX = center + radius * Math.cos((angle - 90) * Math.PI / 180);
+                    const startY = center + radius * Math.sin((angle - 90) * Math.PI / 180);
+                    const endX = center + radius * Math.cos((angle + segmentAngle - 90) * Math.PI / 180);
+                    const endY = center + radius * Math.sin((angle + segmentAngle - 90) * Math.PI / 180);
 
-                      // Dilim içindeki metin pozisyonunu hesapla (dikey)
-                      const textRadius = radius - 50;
-                      const textAngle = angle + segmentAngle / 2;
-                      const textX = center + textRadius * Math.cos((textAngle - 90) * Math.PI / 180);
-                      const textY = center + textRadius * Math.sin((textAngle - 90) * Math.PI / 180);
+                    const textRadius = radius - 55;
+                    const textAngle = angle + segmentAngle / 2;
+                    const textX = center + textRadius * Math.cos((textAngle - 90) * Math.PI / 180);
+                    const textY = center + textRadius * Math.sin((textAngle - 90) * Math.PI / 180);
 
-                      return (
-                        <g key={`${interest}-${index}`}>
-                          <path
-                            d={`M ${center},${center} L ${startX},${startY} A ${radius},${radius} 0 ${largeArcFlag} 1 ${endX},${endY} Z`}
-                            fill={SEGMENT_COLORS[index % SEGMENT_COLORS.length]}
-                            stroke="#2a2520"
-                            strokeWidth="1"
-                          />
-                          <text
-                            x={textX}
-                            y={textY}
-                            textAnchor="middle"
-                            dominantBaseline="middle"
-                            fill="white"
-                            className="text-[10px] font-bold"
-                            style={{ 
-                              // Metni dilime paralel döndür
-                              transform: `rotate(${textAngle}deg)`, 
-                              transformOrigin: `${textX}px ${textY}px` 
-                            }}
-                          >
-                            {interest}
-                          </text>
-                        </g>
-                      );
-                    })}
-                  </g>
-                  {/* Gölge filtresi */}
-                  <defs>
-                    <filter id="shadow">
-                      <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000" floodOpacity="0.3" />
-                    </filter>
-                  </defs>
+                    const strokeColor = SEGMENT_STROKES[index % SEGMENT_STROKES.length];
+
+                    return (
+                      <g key={`${interest}-${index}`}>
+                        <path
+                          d={`M ${center},${center} L ${startX},${startY} A ${radius},${radius} 0 ${largeArcFlag} 1 ${endX},${endY} Z`}
+                          fill={SEGMENT_COLORS[index % SEGMENT_COLORS.length]}
+                          stroke={strokeColor + '66'}
+                          strokeWidth="1.5"
+                        />
+                        <text
+                          x={textX}
+                          y={textY}
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          fill={strokeColor}
+                          className="text-[11px] font-medium"
+                          style={{
+                            fontFamily: "'DM Sans', sans-serif",
+                            transform: `rotate(${textAngle}deg)`,
+                            transformOrigin: `${textX}px ${textY}px`,
+                          }}
+                        >
+                          {interest}
+                        </text>
+                      </g>
+                    );
+                  })}
                 </svg>
 
-                {/* Çarkın merkezi (Hediye kutusu ve "SPIN" metni) */}
+                {/* Çark merkezi */}
                 <div className="absolute top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] z-20 pointer-events-none">
-                  <svg width="100" height="100" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="45" fill="#1c1917" stroke="#292524" strokeWidth="2" />
-                    <circle cx="50" cy="50" r="38" fill="none" stroke="#C8956C" strokeWidth="1.5" />
-                    <circle cx="50" cy="50" r="18" fill="#C8956C" />
-                    <text x="50" y="50" textAnchor="middle" dominantBaseline="middle" className="text-xl">🎁</text>
-                  </svg>
-                </div>
-
-                {/* Işıklı dış çerçeve (Dönmeyen kısım) */}
-                <div className="absolute top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] z-10 pointer-events-none">
-                  <svg width="424" height="424" viewBox="0 0 424 424">
-                    {/* Koyu mavi dış çerçeve */}
-                    <circle cx="212" cy="212" r="200" fill="none" stroke="#3a3530" strokeWidth="10" />
-                    {/* 12 Işık */}
-                    {[...Array(12)].map((_, i) => {
-                      const angle = i * (360 / 12);
-                      const radius = 206; // Işıkları çerçevenin dışına yerleştir
-                      const center = 212;
-                      const x = center + radius * Math.cos((angle - 90) * Math.PI / 180);
-                      const y = center + radius * Math.sin((angle - 90) * Math.PI / 180);
-                      return <circle key={i} cx={x} cy={y} r="3" fill="#FFD700" />;
-                    })}
+                  <svg width="64" height="64" viewBox="0 0 64 64">
+                    <circle cx="32" cy="32" r="30" fill="#0f0e0c" stroke="#e8c87a" strokeWidth="2" />
+                    <text x="32" y="32" textAnchor="middle" dominantBaseline="middle" className="text-[22px]">🎁</text>
                   </svg>
                 </div>
               </div>
 
-              {/* Çarkın üstündeki sarı işaretçi ok (Pointer) */}
+              {/* Pointer — çark çemberinin üst kenarına oturur */}
               <div
-                className="absolute top-[-10px] left-[50%] translate-x-[-50%] z-30 w-[32px] h-[32px] bg-[#FFD700] rotate-45 rounded-sm"
-                style={{ clipPath: 'polygon(50% 100%, 0 0, 100% 0)' }}
-              ></div>
-              <p className="absolute bottom-6 text-sm font-medium text-stone-500 z-30">Bilgileri doldurup çarkı çevir</p>
+                className="absolute left-[50%] z-30 w-6 h-6 rounded-[4px]"
+                style={{
+                  top: 'calc(50% - 225px)',
+                  marginLeft: '-12px',
+                  background: 'linear-gradient(135deg, #e8c87a, #c9a84c)',
+                  transform: 'rotate(45deg)',
+                  boxShadow: '0 4px 15px rgba(232,200,122,0.4)',
+                }}
+              />
+              <p className="text-sm font-light" style={{ color: '#8a8478' }}>Bilgileri doldurup çarkı çevir</p>
             </>
           )}
 
-          {/* Kazanan Kategori Ekranı */}
+          {/* Kazanan Kategori */}
           {spinResult && (
-            <div className="text-center mb-6 z-10">
-              <span className="text-xs font-semibold text-stone-500 uppercase tracking-widest">Çark Sonucu</span>
-              <h2 className="text-3xl font-bold text-amber-400 mt-1">{spinResult}</h2>
+            <div className="text-center mb-4 z-10">
+              <span
+                className="text-[10px] font-medium tracking-[0.14em] uppercase"
+                style={{ color: '#e8c87a' }}
+              >
+                ✦ Çark Sonucu
+              </span>
+              <h2
+                className="text-[28px] font-bold mt-2"
+                style={{ fontFamily: "'Playfair Display', serif", color: '#f0ece4' }}
+              >
+                {spinResult}
+              </h2>
             </div>
           )}
 
-          {/* AI Yükleniyor Ekranı (Sadece metin akmaya başlayana kadar görünür) */}
+          {/* AI Yükleniyor */}
           {aiLoading && streamedResponse.length === 0 && (
-            <div className="flex flex-col items-center animate-pulse z-10">
-              <div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mb-4"></div>
-              <p className="text-stone-400">Yapay zeka size özel hediyeler düşünüyor... Bu biraz zaman alabilir...</p>
+            <div className="flex flex-col items-center gap-3 z-10">
+              <div className="flex gap-[6px]">
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className="w-[6px] h-[6px] rounded-full animate-pulse"
+                    style={{
+                      background: '#e8c87a',
+                      animationDelay: `${i * 0.2}s`,
+                    }}
+                  />
+                ))}
+              </div>
+              <p className="text-[13px] font-light" style={{ color: '#8a8478' }}>
+                Hediyeler aranıyor…
+              </p>
             </div>
           )}
 
-          {/* Streamlenmiş AI Metni */}
+          {/* AI Sonuçları */}
           {streamedResponse.length > 0 && (
-            <div className="w-full text-left space-y-5 z-10">
-               <h3 className="text-xl font-bold text-stone-100">Önerilen Hediyeler</h3>
+            <div className="w-full text-left space-y-4 z-10">
+              <h3
+                className="text-lg font-bold"
+                style={{ fontFamily: "'Playfair Display', serif", color: '#f0ece4' }}
+              >
+                Önerilen Hediyeler
+              </h3>
               <div
-                className="whitespace-pre-wrap text-stone-300 text-sm leading-relaxed custom-scrollbar"
-                aria-label="AI tarafından oluşturulan hediye önerileri (Markdown formatında metin)"
+                className="whitespace-pre-wrap text-sm leading-relaxed"
+                style={{ color: '#8a8478' }}
+                aria-label="AI tarafından oluşturulan hediye önerileri"
                 aria-live="polite"
               >
                 {streamedResponse}
               </div>
               {!aiLoading && (
-                <button
-                  onClick={() => {
-                    document.cookie.split(";").forEach((c) => {
-                      document.cookie = c.trim().split("=")[0] + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
-                    });
-                    window.location.reload();
-                  }}
-                  className="w-full mt-4 px-4 py-3 bg-stone-800 hover:bg-stone-700 text-white font-medium rounded-xl transition-colors border border-stone-700 shadow-lg shadow-black/10"
-                  aria-label="Önerileri yeniden oluştur"
-                >
-                  Yeniden Çevir
-                </button>
+                <div className="flex gap-[10px] mt-6">
+                  <button
+                    onClick={() => {
+                      document.cookie.split(";").forEach((c) => {
+                        document.cookie = c.trim().split("=")[0] + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+                      });
+                      window.location.reload();
+                    }}
+                    className="flex-1 py-[11px] rounded-[10px] border text-[13px] font-normal cursor-pointer transition-all"
+                    style={{
+                      background: 'transparent',
+                      borderColor: 'rgba(255,255,255,0.08)',
+                      color: '#8a8478',
+                      fontFamily: "'DM Sans', sans-serif",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(232,200,122,0.3)'; e.currentTarget.style.color = '#e8c87a'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#8a8478'; }}
+                    aria-label="Tekrar çevir"
+                  >
+                    ↺ Tekrar Çevir
+                  </button>
+                </div>
               )}
             </div>
           )}
