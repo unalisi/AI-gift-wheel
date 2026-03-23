@@ -44,7 +44,8 @@ function App() {
   const [spinResult, setSpinResult] = useState<string | null>(null);
   const [streamedResponse, setStreamedResponse] = useState<string>("");
   const [aiLoading, setAiLoading] = useState(false);
-  const [wheelRotation, setWheelRotation] = useState(0); // Çarkın rotasyon açısı
+  const [wheelRotation, setWheelRotation] = useState(0);
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   const spinAudioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -286,17 +287,84 @@ function App() {
     <div className="min-h-screen bg-stone-950 p-6 md:p-12 flex flex-col items-center justify-start font-sans text-stone-100">
       
       {/* HEADER ALANI */}
-      <header className="w-full max-w-7xl flex flex-col items-center justify-center text-center mb-16 space-y-4">
-        <div className="px-4 py-1.5 bg-stone-900 rounded-full border border-stone-800 text-xs text-amber-400 font-medium tracking-wider uppercase">
+      <header className="w-full max-w-7xl mb-16">
+        <div className="flex items-center justify-between mb-6">
+          <div className="w-10" />
+          <div className="px-4 py-1.5 bg-stone-900 rounded-full border border-stone-800 text-xs text-amber-400 font-medium tracking-wider uppercase">
             ✦ YAPAY ZEKA DESTEKLİ
+          </div>
+          <div className="flex items-center gap-2">
+            <a
+              href="https://github.com/unalisi/kreatif-proje"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-stone-900 border border-stone-800 text-stone-400 hover:text-amber-400 hover:border-amber-400/50 transition-colors"
+              aria-label="GitHub reposunu görüntüle"
+              tabIndex={0}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+              </svg>
+            </a>
+            <button
+              onClick={() => setShowInfoModal(true)}
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-stone-900 border border-stone-800 text-stone-400 hover:text-amber-400 hover:border-amber-400/50 transition-colors text-lg font-bold"
+              aria-label="Proje hakkında bilgi"
+              tabIndex={0}
+            >
+              ?
+            </button>
+          </div>
         </div>
-        <h1 className="text-5xl md:text-6xl font-extrabold text-stone-100 tracking-tight leading-none" style={{ fontFamily: 'serif' }}>
-          Hediye Çarkı
-        </h1>
-        <p className="text-sm md:text-base text-stone-400 max-w-[420px] mx-auto">
-          Kişiye özel bilgileri gir, çarkı çevir — AI en iyi hediyeyi bulsun.
-        </p>
+        <div className="flex flex-col items-center text-center space-y-4">
+          <h1 className="text-5xl md:text-6xl font-extrabold text-stone-100 tracking-tight leading-none" style={{ fontFamily: 'serif' }}>
+            Hediye Çarkı
+          </h1>
+          <p className="text-sm md:text-base text-stone-400 max-w-[420px] mx-auto">
+            Kişiye özel bilgileri gir, çarkı çevir — AI en iyi hediyeyi bulsun.
+          </p>
+        </div>
       </header>
+
+      {/* BİLGİ MODAL */}
+      {showInfoModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setShowInfoModal(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Proje hakkında bilgi modalı"
+        >
+          <div
+            className="bg-stone-900 border border-stone-800 rounded-2xl p-8 max-w-md w-full shadow-2xl space-y-5 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowInfoModal(false)}
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-stone-800 hover:bg-stone-700 text-stone-400 hover:text-stone-100 transition-colors"
+              aria-label="Modalı kapat"
+            >
+              ✕
+            </button>
+            <h2 className="text-2xl font-bold text-stone-100" style={{ fontFamily: 'serif' }}>
+              Hediye Çarkı Hakkında
+            </h2>
+            <div className="space-y-3 text-sm text-stone-300 leading-relaxed">
+              <p>
+                <span className="text-amber-400 font-semibold">Hediye Çarkı</span>, yapay zeka destekli bir hediye öneri uygulamasıdır. Kişiye özel bilgileri girdikten sonra çarkı çevirerek AI&apos;ın size en uygun hediye önerilerini sunmasını sağlayabilirsiniz.
+              </p>
+              <p>
+                Uygulama <span className="text-amber-400 font-semibold">Cloudflare Workers AI</span> altyapısını kullanarak <span className="text-amber-400 font-semibold">Llama 3.1</span> modeli ile gerçek zamanlı hediye önerileri üretir.
+              </p>
+              <div className="pt-2 border-t border-stone-800">
+                <p className="text-stone-500 text-xs">
+                  React + TypeScript + Tailwind CSS + Cloudflare Workers
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="w-full max-w-7xl grid md:grid-cols-2 gap-12 items-start">
         
