@@ -3,14 +3,14 @@ import confetti from 'canvas-confetti';
 
 // Seçilen kategori sayısına göre renkleri döngüyle kullanıyoruz
 const SEGMENT_COLORS = [
-  '#00BFFF', // Cyan
-  '#EE82EE', // Pink
-  '#9400D3', // Purple
-  '#FF8C00', // Orange
-  '#FF4500', // Red
-  '#FF1493', // Fuchsia
-  '#00FF00', // Green
-  '#FFD700', // Yellow
+  '#6B4C3B',
+  '#3D5B4A',
+  '#6B3A4D',
+  '#5A6B3A',
+  '#3A4D5B',
+  '#5B4A3A',
+  '#4D3A5B',
+  '#5B6B3A',
 ];
 
 // Form seçenekleri (Tasarım görüntüsüne uygun)
@@ -192,6 +192,7 @@ function App() {
 
       const decoder = new TextDecoder();
       let buffer = "";
+      let fullText = "";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -199,9 +200,9 @@ function App() {
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
-
-        // Son satır yarım kalmış olabilir, onu buffer'da tut
         buffer = lines.pop() || "";
+
+        let chunkToAppend = "";
 
         for (const line of lines) {
           const trimmedLine = line.trim();
@@ -209,25 +210,30 @@ function App() {
             try {
               const data = JSON.parse(trimmedLine.slice(6)) as { response?: unknown };
               if (typeof data.response === "string") {
-                setStreamedResponse((prev) => prev + data.response);
+                chunkToAppend += data.response;
               }
             } catch {
-              // Eksik chunk'ları (parçaları) sessizce geç
+              // Eksik chunk'ları sessizce geç
             }
           }
         }
+
+        if (chunkToAppend) {
+          fullText += chunkToAppend;
+          setStreamedResponse(fullText);
+        }
       }
 
-      // Akış bittiğinde buffer'da kalmış son "data:" satırını da işle
       const remainingLine = buffer.trim();
       if (remainingLine.startsWith("data: ") && remainingLine !== "data: [DONE]") {
         try {
           const data = JSON.parse(remainingLine.slice(6)) as { response?: unknown };
           if (typeof data.response === "string") {
-            setStreamedResponse((prev) => prev + data.response);
+            fullText += data.response;
+            setStreamedResponse(fullText);
           }
         } catch {
-          // buffer parçalıysa sessizce geç
+          // Eksik chunk sessizce geç
         }
       }
     } catch (err) {
@@ -266,7 +272,7 @@ function App() {
             className={`px-3 py-1.5 rounded-full text-xs transition border ${
               isSelected
                 ? "bg-amber-400 text-black font-medium border-amber-400"
-                : "bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-800"
+                : "bg-stone-900 text-stone-300 border-stone-800 hover:bg-stone-800"
             }`}
           >
             {option}
@@ -277,17 +283,17 @@ function App() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-950 p-6 md:p-12 flex flex-col items-center justify-start font-sans text-slate-100">
+    <div className="min-h-screen bg-stone-950 p-6 md:p-12 flex flex-col items-center justify-start font-sans text-stone-100">
       
       {/* HEADER ALANI */}
       <header className="w-full max-w-7xl flex flex-col items-center justify-center text-center mb-16 space-y-4">
-        <div className="px-4 py-1.5 bg-slate-900 rounded-full border border-slate-800 text-xs text-amber-400 font-medium tracking-wider uppercase">
+        <div className="px-4 py-1.5 bg-stone-900 rounded-full border border-stone-800 text-xs text-amber-400 font-medium tracking-wider uppercase">
             ✦ YAPAY ZEKA DESTEKLİ
         </div>
-        <h1 className="text-5xl md:text-6xl font-extrabold text-slate-100 tracking-tight leading-none" style={{ fontFamily: 'serif' }}>
+        <h1 className="text-5xl md:text-6xl font-extrabold text-stone-100 tracking-tight leading-none" style={{ fontFamily: 'serif' }}>
           Hediye Çarkı
         </h1>
-        <p className="text-sm md:text-base text-slate-400 max-w-[420px] mx-auto">
+        <p className="text-sm md:text-base text-stone-400 max-w-[420px] mx-auto">
           Kişiye özel bilgileri gir, çarkı çevir — AI en iyi hediyeyi bulsun.
         </p>
       </header>
@@ -295,47 +301,47 @@ function App() {
       <div className="w-full max-w-7xl grid md:grid-cols-2 gap-12 items-start">
         
         {/* SOL PANEL: Form ve Seçimler */}
-        <div className="bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-2xl space-y-6">
-          <h2 className="text-2xl font-bold text-slate-100 mb-6">Kişi Bilgileri</h2>
+        <div className="bg-stone-900 p-8 rounded-2xl border border-stone-800 shadow-2xl space-y-6">
+          <h2 className="text-2xl font-bold text-stone-100 mb-6" style={{ fontFamily: 'serif' }}>Kişi Bilgileri</h2>
 
           {/* Yaş Aralığı */}
           <div className="space-y-3">
-            <label className="text-sm font-medium text-slate-300">YAŞ ARALIĞI</label>
+            <label className="text-sm font-medium text-stone-300">YAŞ ARALIĞI</label>
             <TagGroup options={formOptions.yasAraliklari} selectedValues={formData.yasAraligi} onSelect={handleInputChange} keyProp="yasAraligi" />
           </div>
 
           {/* Cinsiyet */}
           <div className="space-y-3">
-            <label className="text-sm font-medium text-slate-300">CİNSİYET</label>
+            <label className="text-sm font-medium text-stone-300">CİNSİYET</label>
             <TagGroup options={formOptions.cinsiyetler} selectedValues={formData.cinsiyet} onSelect={handleInputChange} keyProp="cinsiyet" />
           </div>
 
           {/* İlgi Alanları (Çoklu Seçim) */}
           <div className="space-y-3">
-            <label className="text-sm font-medium text-slate-300">İLGI ALANLARI <span className='text-xs text-slate-500'>(Çoklu Seçim)</span></label>
+            <label className="text-sm font-medium text-stone-300">İLGI ALANLARI <span className='text-xs text-stone-500'>(Çoklu Seçim)</span></label>
             <TagGroup options={formOptions.ilgiAlanlari} selectedValues={formData.ilgiAlani} onSelect={handleInputChange} keyProp="ilgiAlani" multiple={true} />
           </div>
 
           {/* Bütçe Aralığı */}
           <div className="space-y-3">
-            <label className="text-sm font-medium text-slate-300">BÜTÇE ARALIĞI</label>
+            <label className="text-sm font-medium text-stone-300">BÜTÇE ARALIĞI</label>
             <TagGroup options={formOptions.butceler} selectedValues={formData.butce} onSelect={handleInputChange} keyProp="butce" />
           </div>
 
           {/* Vesile */}
           <div className="space-y-3">
-            <label className="text-sm font-medium text-slate-300">VESİLE</label>
+            <label className="text-sm font-medium text-stone-300">VESİLE</label>
             <TagGroup options={formOptions.vesileler} selectedValues={formData.vesile} onSelect={handleInputChange} keyProp="vesile" />
           </div>
 
           {/* Ekstra Not (Opsiyonel) */}
           <div className="space-y-3">
-            <label className="text-sm font-medium text-slate-300">EKSTRA NOT (OPSİYONEL)</label>
+            <label className="text-sm font-medium text-stone-300">EKSTRA NOT (OPSİYONEL)</label>
             <textarea
               value={formData.ekstraNot}
               onChange={(e) => handleInputChange('ekstraNot', e.target.value)}
               rows={3}
-              className="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 custom-scrollbar"
+              className="w-full bg-stone-800/50 border border-stone-700 rounded-xl px-4 py-3 text-sm text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-500 custom-scrollbar"
               placeholder="Örn: 'Kahveye bayılıyor, evde çalışıyor, minimalist zevki var...'"
             />
           </div>
@@ -352,7 +358,7 @@ function App() {
         </div>
 
         {/* SAĞ PANEL: Çark ve Sonuçlar */}
-        <div className="flex flex-col items-center justify-center p-8 bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl min-h-[500px] relative">
+        <div className="flex flex-col items-center justify-center p-8 bg-stone-900 rounded-2xl border border-stone-800 shadow-2xl min-h-[500px] relative">
           
           {/* Çark Ekranı (Eğer kazanan yoksa veya AI yüklenmiyorsa) */}
           {!spinResult && !aiLoading && streamedResponse.length === 0 && (
@@ -397,8 +403,8 @@ function App() {
                           <path
                             d={`M ${center},${center} L ${startX},${startY} A ${radius},${radius} 0 ${largeArcFlag} 1 ${endX},${endY} Z`}
                             fill={SEGMENT_COLORS[index % SEGMENT_COLORS.length]}
-                            stroke="#334155"
-                            strokeWidth="1.5"
+                            stroke="#2a2520"
+                            strokeWidth="1"
                           />
                           <text
                             x={textX}
@@ -430,12 +436,10 @@ function App() {
                 {/* Çarkın merkezi (Hediye kutusu ve "SPIN" metni) */}
                 <div className="absolute top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] z-20 pointer-events-none">
                   <svg width="100" height="100" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="45" fill="#111827" stroke="#334155" strokeWidth="1.5" />
-                    <circle cx="50" cy="50" r="18" fill="#FFD700" stroke="#F59E0B" strokeWidth="1.2" />
-                    <text x="50" y="50" textAnchor="middle" dominantBaseline="middle" className="text-2xl z-30">🎁</text>
-                    {/* "SPIN" metni - hediye kutusunun arkasında koyu mavi dairede */}
-                    <circle cx="50" cy="50" r="40" fill="#000080" />
-                    <text x="50" y="50" textAnchor="middle" dominantBaseline="middle" className="text-[10px] font-extrabold text-white">SPIN</text>
+                    <circle cx="50" cy="50" r="45" fill="#1c1917" stroke="#292524" strokeWidth="2" />
+                    <circle cx="50" cy="50" r="38" fill="none" stroke="#C8956C" strokeWidth="1.5" />
+                    <circle cx="50" cy="50" r="18" fill="#C8956C" />
+                    <text x="50" y="50" textAnchor="middle" dominantBaseline="middle" className="text-xl">🎁</text>
                   </svg>
                 </div>
 
@@ -443,7 +447,7 @@ function App() {
                 <div className="absolute top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] z-10 pointer-events-none">
                   <svg width="424" height="424" viewBox="0 0 424 424">
                     {/* Koyu mavi dış çerçeve */}
-                    <circle cx="212" cy="212" r="200" fill="none" stroke="#00008B" strokeWidth="12" />
+                    <circle cx="212" cy="212" r="200" fill="none" stroke="#3a3530" strokeWidth="10" />
                     {/* 12 Işık */}
                     {[...Array(12)].map((_, i) => {
                       const angle = i * (360 / 12);
@@ -462,14 +466,14 @@ function App() {
                 className="absolute top-[-10px] left-[50%] translate-x-[-50%] z-30 w-[32px] h-[32px] bg-[#FFD700] rotate-45 rounded-sm"
                 style={{ clipPath: 'polygon(50% 100%, 0 0, 100% 0)' }}
               ></div>
-              <p className="absolute bottom-6 text-sm font-medium text-slate-500 z-30">Bilgileri doldurup çarkı çevir</p>
+              <p className="absolute bottom-6 text-sm font-medium text-stone-500 z-30">Bilgileri doldurup çarkı çevir</p>
             </>
           )}
 
           {/* Kazanan Kategori Ekranı */}
           {spinResult && (
             <div className="text-center mb-6 z-10">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Çark Sonucu</span>
+              <span className="text-xs font-semibold text-stone-500 uppercase tracking-widest">Çark Sonucu</span>
               <h2 className="text-3xl font-bold text-amber-400 mt-1">{spinResult}</h2>
             </div>
           )}
@@ -478,16 +482,16 @@ function App() {
           {aiLoading && streamedResponse.length === 0 && (
             <div className="flex flex-col items-center animate-pulse z-10">
               <div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mb-4"></div>
-              <p className="text-slate-400">Yapay zeka size özel hediyeler düşünüyor...</p>
+              <p className="text-stone-400">Yapay zeka size özel hediyeler düşünüyor... Bu biraz zaman alabilir...</p>
             </div>
           )}
 
           {/* Streamlenmiş AI Metni */}
           {streamedResponse.length > 0 && (
             <div className="w-full text-left space-y-5 z-10">
-               <h3 className="text-xl font-bold text-slate-100">Önerilen Hediyeler</h3>
+               <h3 className="text-xl font-bold text-stone-100">Önerilen Hediyeler</h3>
               <div
-                className="whitespace-pre-wrap text-slate-300 text-sm leading-relaxed custom-scrollbar"
+                className="whitespace-pre-wrap text-stone-300 text-sm leading-relaxed custom-scrollbar"
                 aria-label="AI tarafından oluşturulan hediye önerileri (Markdown formatında metin)"
                 aria-live="polite"
               >
@@ -495,11 +499,16 @@ function App() {
               </div>
               {!aiLoading && (
                 <button
-                  onClick={() => { setSpinResult(null); setStreamedResponse(""); }}
-                  className="w-full mt-4 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-xl transition-colors border border-slate-700 shadow-lg shadow-black/10"
+                  onClick={() => {
+                    document.cookie.split(";").forEach((c) => {
+                      document.cookie = c.trim().split("=")[0] + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+                    });
+                    window.location.reload();
+                  }}
+                  className="w-full mt-4 px-4 py-3 bg-stone-800 hover:bg-stone-700 text-white font-medium rounded-xl transition-colors border border-stone-700 shadow-lg shadow-black/10"
                   aria-label="Önerileri yeniden oluştur"
                 >
-                  Yeniden Dene
+                  Yeniden Çevir
                 </button>
               )}
             </div>

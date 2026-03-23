@@ -61,21 +61,20 @@ export default {
         const body = (await request.json()) as SuggestRequestBody;
         const { yas, cinsiyet, butce, vesile, ekstraNot, spinKategorisi } = body;
 
-        // 1. SİSTEM KOMUTU: Yapay zekanın karakterini ve kesin sınırlarını belirliyoruz
-        const systemPrompt = `Sen profesyonel ve yaratıcı bir hediye danışmanısın. SADECE TÜRKÇE (Turkish) dilinde yanıt vermen KESİNLİKLE ZORUNLUDUR. Hiçbir koşulda İngilizce kelime veya cümle kullanma. Yanıtların her zaman numaralandırılmış bir liste formatında olmalıdır.`;
+        const budgetMap: Record<string, string> = {
+          "100-250₺": "100 TL ile 250 TL arasında",
+          "250-500₺": "250 TL ile 500 TL arasında",
+          "500-1K₺": "500 TL ile 1000 TL arasında",
+          "1K-2.5K₺": "1000 TL ile 2500 TL arasında",
+          "2.5K₺+": "en az 2500 TL ve üzeri (premium/lüks segment)",
+        };
+        const budgetDescription = budgetMap[butce] || butce;
 
-        // 2. KULLANICI KOMUTU: Sadece görev detaylarını veriyoruz
-        const userPrompt = `Kullanıcı Profili:
-Yaş Aralığı: ${yas}
-Cinsiyet: ${cinsiyet}
-Bütçe Aralığı: ${butce}
-Vesile: ${vesile}
-Ekstra Notlar: ${ekstraNot || "Yok"}
-Çarktan Çıkan Kategori: ${spinKategorisi}
+        const systemPrompt = `Sen hediye danışmanısın. Yalnızca TÜRKÇE yanıt ver. Sonuçları sadece 5 maddelik numaralı liste olarak ver. KRİTİK KURAL: Önerdiğin her hediyenin fiyatı kullanıcının belirttiği bütçe aralığının İÇİNDE olmalıdır. Bütçenin altında veya üstünde fiyat YAZMA.`;
 
-Lütfen yukarıdaki profile tam uygun, yaratıcı ve spesifik 5 adet hediye önerisi yap. Her önerinin yanına (bu bütçeye uygun olarak) tahmini fiyatını ve bu hediyeyi neden seçtiğini 1-2 cümle ile TÜRKÇE olarak açıkla. Giriş veya çıkış cümlesi yazma, doğrudan 1. maddeden başla.`;
-
-        // 1. SİSTEM KOMUTU ve 2. KULLANICI KOMUTU kısımları aynı kalıyor...
+        const userPrompt = `Bütçe (KESİN UYULMALI): ${budgetDescription}.
+Yaş: ${yas}, Cinsiyet: ${cinsiyet}, Vesile: ${vesile}, Not: ${ekstraNot || "Yok"}, Kategori: ${spinKategorisi}.
+Bu bütçeye uygun SADECE 5 kısa hediye önerisi yap. Her madde: hediye adı, tahmini fiyat (${budgetDescription} aralığında), tek cümle açıklama. Doğrudan listeye başla.`;
         const messagesV1 = [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -85,13 +84,15 @@ Lütfen yukarıdaki profile tam uygun, yaratıcı ve spesifik 5 adet hediye öne
         // Doğrudan stream (akış) başlatıyoruz.
         const stream = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
           messages: messagesV1,
-          stream: true, // YAPAY ZEKAYI HIZLANDIRAN SİHİRLİ KELİME
-          max_tokens: 800, // Uzun yanıt verip timeout olmasını engeller
+          stream: true,
+          max_tokens: 400,
         });
 
         return new Response(stream, {
           headers: {
-            "Content-Type": "text/event-stream", // Stream header'ı
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
             ...corsHeaders,
           },
         });
